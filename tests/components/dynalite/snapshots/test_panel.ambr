@@ -1,0 +1,115 @@
+# serializer version: 1
+# name: test_save_config_reconfigures_library[entry_data]
+  dict({
+    'active': 'init',
+    'area': dict({
+      '1': dict({
+        'channel': dict({
+          '1': dict({
+            'name': 'Downlight',
+            'type': 'light',
+          }),
+        }),
+        'name': 'Lights',
+        'nodefault': True,
+        'preset': dict({
+          '5': dict({
+            'fade': 2.0,
+            'name': 'Party',
+          }),
+        }),
+      }),
+      '2': dict({
+        'name': 'Room',
+        'room_on': '2',
+        'template': 'room',
+      }),
+      '3': dict({
+        'class': <CoverDeviceClass.SHUTTER: 'shutter'>,
+        'name': 'Blind',
+        'template': 'time_cover',
+        'tilt': 1.0,
+      }),
+    }),
+    'autodiscover': False,
+    'default': dict({
+      'fade': 0.5,
+    }),
+    'host': '1.2.3.4',
+    'name': 'dynalite',
+    'port': 12345,
+    'preset': dict({
+      '1': dict({
+        'level': 1.0,
+        'name': 'On',
+      }),
+    }),
+    'template': dict({
+      'room': dict({
+        'room_off': '4',
+        'room_on': '1',
+      }),
+      'time_cover': dict({
+        'channel_cover': '2',
+        'duration': 30.0,
+      }),
+    }),
+  })
+# ---
+# name: test_save_config_reconfigures_library[library_config]
+  dict({
+    'active': 'init',
+    'area': dict({
+      '1': dict({
+        'channel': dict({
+          '1': dict({
+            'name': 'Downlight',
+            'type': 'light',
+          }),
+        }),
+        'name': 'Lights',
+        'nodefault': True,
+        'preset': dict({
+          '5': dict({
+            'fade': 2.0,
+            'name': 'Party',
+          }),
+        }),
+      }),
+      '2': dict({
+        'name': 'Room',
+        'room_on': '2',
+        'template': 'room',
+      }),
+      '3': dict({
+        'class': <CoverDeviceClass.SHUTTER: 'shutter'>,
+        'name': 'Blind',
+        'template': 'timecover',
+        'tilt': 1.0,
+      }),
+    }),
+    'autodiscover': False,
+    'default': dict({
+      'fade': 0.5,
+    }),
+    'host': '1.2.3.4',
+    'name': 'dynalite',
+    'port': 12345,
+    'preset': dict({
+      '1': dict({
+        'level': 1.0,
+        'name': 'On',
+      }),
+    }),
+    'template': dict({
+      'room': dict({
+        'room_off': '4',
+        'room_on': '1',
+      }),
+      'timecover': dict({
+        'channelcover': '2',
+        'duration': 30.0,
+      }),
+    }),
+  })
+# ---

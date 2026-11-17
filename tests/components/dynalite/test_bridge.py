@@ -9,7 +9,9 @@ from dynalite_devices_lib.dynalite_devices import (
     NOTIFICATION_PRESET,
     DynaliteNotification,
 )
+import pytest
 from pytest_homeassistant.common import MockConfigEntry
+from syrupy.assertion import SnapshotAssertion
 
 from homeassistant.components import dynalite
 from homeassistant.components.dynalite.const import (
@@ -153,3 +155,107 @@ async def test_notifications(hass: HomeAssistant) -> None:
     assert my_event.data[ATTR_HOST] == host
     assert my_event.data[ATTR_AREA] == 7
     assert my_event.data[ATTR_PRESET] == 2
+
+
+ENTRY_DATA = {
+    "name": "dynalite",
+    "host": "1.2.3.4",
+    "port": 12345,
+    "autodiscover": False,
+    "polltimer": 1.0,
+    "active": "on",
+    "default": {"fade": 0.5},
+    "preset": {
+        "1": {"name": "On", "level": 1.0, "fade": 0.5},
+        "4": {"name": "Off", "level": 0.0},
+    },
+    "template": {
+        "room": {"room_on": "1", "room_off": "4"},
+        "time_cover": {
+            "channel_cover": "2",
+            "class": "blind",
+            "open": "1",
+            "close": "2",
+            "stop": "3",
+            "duration": 30.0,
+            "tilt": 2.0,
+        },
+    },
+    "area": {
+        "1": {
+            "name": "Lights",
+            "fade": 1.0,
+            "nodefault": True,
+            "channel": {
+                "1": {"name": "Downlight", "type": "light", "fade": 2.0},
+                "2": {"name": "Fan", "type": "switch"},
+            },
+            "preset": {"5": {"name": "Party", "level": 0.8}},
+        },
+        "2": {"name": "Room", "template": "room", "room_on": "2", "room_off": "3"},
+        "3": {
+            "name": "Blind",
+            "template": "time_cover",
+            "channel_cover": "4",
+            "class": "shutter",
+            "open": "5",
+            "close": "6",
+            "stop": "7",
+            "duration": 20.0,
+            "tilt": 1.5,
+        },
+    },
+}
+
+
+async def test_entry_data_passed_to_library(
+    hass: HomeAssistant, snapshot: SnapshotAssertion
+) -> None:
+    """Test the config entry data is converted to the library's config format."""
+    entry = MockConfigEntry(domain=dynalite.DOMAIN, data=ENTRY_DATA)
+    entry.add_to_hass(hass)
+    with (
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ),
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.configure"
+        ) as mock_configure,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    mock_configure.assert_called_once()
+    assert mock_configure.call_args.args[0] == snapshot
+
+
+@pytest.mark.parametrize(
+    ("active", "expected"),
+    [
+        (True, "on"),
+        (False, "off"),
+        ("on", "on"),
+        ("off", "off"),
+        ("init", "init"),
+    ],
+)
+async def test_active_passed_to_library(
+    hass: HomeAssistant, active: bool | str, expected: str
+) -> None:
+    """Test each form of the active option maps to the library's value."""
+    entry = MockConfigEntry(
+        domain=dynalite.DOMAIN, data={CONF_HOST: "1.2.3.4", "active": active}
+    )
+    entry.add_to_hass(hass)
+    with (
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ),
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.configure"
+        ) as mock_configure,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert mock_configure.call_args.args[0]["active"] == expected

@@ -1,0 +1,81 @@
+# serializer version: 1
+# name: test_entry_data_passed_to_library
+  dict({
+    'active': 'on',
+    'area': dict({
+      '1': dict({
+        'channel': dict({
+          '1': dict({
+            'fade': 2.0,
+            'name': 'Downlight',
+            'type': 'light',
+          }),
+          '2': dict({
+            'name': 'Fan',
+            'type': 'switch',
+          }),
+        }),
+        'fade': 1.0,
+        'name': 'Lights',
+        'nodefault': True,
+        'preset': dict({
+          '5': dict({
+            'level': 0.8,
+            'name': 'Party',
+          }),
+        }),
+      }),
+      '2': dict({
+        'name': 'Room',
+        'room_off': '3',
+        'room_on': '2',
+        'template': 'room',
+      }),
+      '3': dict({
+        'channelcover': '4',
+        'class': 'shutter',
+        'close': '6',
+        'duration': 20.0,
+        'name': 'Blind',
+        'open': '5',
+        'stop': '7',
+        'template': 'timecover',
+        'tilt': 1.5,
+      }),
+    }),
+    'autodiscover': False,
+    'default': dict({
+      'fade': 0.5,
+    }),
+    'host': '1.2.3.4',
+    'name': 'dynalite',
+    'polltimer': 1.0,
+    'port': 12345,
+    'preset': dict({
+      '1': dict({
+        'fade': 0.5,
+        'level': 1.0,
+        'name': 'On',
+      }),
+      '4': dict({
+        'level': 0.0,
+        'name': 'Off',
+      }),
+    }),
+    'template': dict({
+      'room': dict({
+        'room_off': '4',
+        'room_on': '1',
+      }),
+      'timecover': dict({
+        'channelcover': '2',
+        'class': 'blind',
+        'close': '2',
+        'duration': 30.0,
+        'open': '1',
+        'stop': '3',
+        'tilt': 2.0,
+      }),
+    }),
+  })
+# ---
