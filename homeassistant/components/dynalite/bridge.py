@@ -31,7 +31,7 @@ class DynaliteBridge:
         """Initialize the system based on host parameter."""
         self.hass = hass
         self.async_add_devices: dict[str, Callable] = {}
-        self.waiting_devices: dict[str, list[str]] = {}
+        self.waiting_devices: dict[str, list[DynaliteBaseDevice]] = {}
         self.host = config[CONF_HOST]
         # Configure the dynalite devices
         self.dynalite_devices = DynaliteDevices(
