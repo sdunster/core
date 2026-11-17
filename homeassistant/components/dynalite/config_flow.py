@@ -53,6 +53,47 @@ class DynaliteFlowHandler(ConfigFlow, domain=DOMAIN):
         LOGGER.debug("Creating entry for the bridge - %s", info)
         return self.async_create_entry(title=info[CONF_HOST], data=info)
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the gateway's host or port."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            host = user_input[CONF_HOST]
+            port = user_input[CONF_PORT]
+            if any(
+                other.data[CONF_HOST] == host
+                for other in self._async_current_entries()
+                if other.entry_id != entry.entry_id
+            ):
+                return self.async_abort(reason="already_configured")
+            if await _async_can_connect(host, port):
+                # Keep a title the user chose, but follow the host if it is the default
+                title = host if entry.title == entry.data[CONF_HOST] else entry.title
+                return self.async_update_and_abort(
+                    entry,
+                    title=title,
+                    data_updates={CONF_HOST: host, CONF_PORT: port},
+                )
+            errors["base"] = "cannot_connect"
+
+        schema = probatio.Schema(
+            {
+                probatio.Required(CONF_HOST): cv.string,
+                probatio.Required(CONF_PORT): int,
+            }
+        )
+        suggested = user_input or {
+            CONF_HOST: entry.data[CONF_HOST],
+            CONF_PORT: entry.data.get(CONF_PORT, DEFAULT_PORT),
+        }
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            errors=errors,
+        )
+
 
 async def _async_can_connect(host: str, port: int) -> bool:
     """Check that the gateway accepts a TCP connection, then close it."""

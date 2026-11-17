@@ -230,3 +230,104 @@ async def test_user_flow_single_connection(hass: HomeAssistant) -> None:
     mock_connect.return_value[1].close.assert_called_once()
     # Only the entry connected through the library
     mock_setup.assert_called_once()
+
+
+async def _setup_entry(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Set up an entry without connecting to a gateway."""
+    entry.add_to_hass(hass)
+    with patch(
+        "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+        return_value=True,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def test_reconfigure(hass: HomeAssistant) -> None:
+    """Test changing the gateway address keeps the rest of the config."""
+    area = {"1": {"name": "Kitchen"}}
+    entry = MockConfigEntry(
+        domain=dynalite.DOMAIN,
+        title="1.2.3.4",
+        data={CONF_HOST: "1.2.3.4", CONF_PORT: 12345, "area": area},
+    )
+    await _setup_entry(hass, entry)
+
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+
+    with _gateway(reachable=False):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: "5.6.7.8", CONF_PORT: 4321}
+        )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+    with (
+        _gateway() as mock_connect,
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ),
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_reset"
+        ) as mock_reset,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: "5.6.7.8", CONF_PORT: 4321}
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    mock_connect.assert_awaited_once_with("5.6.7.8", 4321)
+    # The check's connection is closed again
+    mock_connect.return_value[1].close.assert_called_once()
+    assert entry.data == {CONF_HOST: "5.6.7.8", CONF_PORT: 4321, "area": area}
+    assert entry.title == "5.6.7.8"
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data.host == "5.6.7.8"
+    # The connection to the old address is closed
+    mock_reset.assert_called_once()
+
+
+async def test_reconfigure_keeps_custom_title(hass: HomeAssistant) -> None:
+    """Test a title the user changed is not replaced by the new host."""
+    entry = MockConfigEntry(
+        domain=dynalite.DOMAIN, title="House", data={CONF_HOST: "1.2.3.4"}
+    )
+    await _setup_entry(hass, entry)
+
+    result = await entry.start_reconfigure_flow(hass)
+    with (
+        _gateway(),
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ),
+        patch("homeassistant.components.dynalite.bridge.DynaliteDevices.async_reset"),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: "5.6.7.8", CONF_PORT: 4321}
+        )
+        await hass.async_block_till_done()
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.title == "House"
+    assert entry.data[CONF_HOST] == "5.6.7.8"
+
+
+async def test_reconfigure_host_of_other_entry(hass: HomeAssistant) -> None:
+    """Test the host of another configured gateway is rejected."""
+    MockConfigEntry(domain=dynalite.DOMAIN, data={CONF_HOST: "5.6.7.8"}).add_to_hass(
+        hass
+    )
+    entry = MockConfigEntry(domain=dynalite.DOMAIN, data={CONF_HOST: "1.2.3.4"})
+    await _setup_entry(hass, entry)
+
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOST: "5.6.7.8", CONF_PORT: 12345}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data == {CONF_HOST: "1.2.3.4"}

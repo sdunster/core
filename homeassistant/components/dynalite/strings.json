@@ -4,6 +4,9 @@
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
     },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+    },
     "step": {
       "user": {
         "data": {
@@ -12,6 +15,18 @@
         },
         "description": "Gateway address to connect to DYNET network",
         "title": "Configure Dynalite Connection"
+      },
+      "reconfigure": {
+        "data": {
+          "host": "[%key:common::config_flow::data::host%]",
+          "port": "[%key:common::config_flow::data::port%]"
+        },
+        "data_description": {
+          "host": "The IP address or hostname of the Dynalite gateway.",
+          "port": "The TCP port of the gateway."
+        },
+        "description": "Change the address of the gateway. Your areas, presets and templates are kept.",
+        "title": "Reconfigure Dynalite connection"
       }
     }
   },
