@@ -107,7 +107,7 @@ def convert_area(config: dict[str, Any]) -> dict[str, Any]:
         }
     if CONF_PRESET in config:
         result[dyn_const.CONF_PRESET] = {
-            preset: convert_preset(preset_conf)
+            preset: convert_preset(preset_conf or {})
             for (preset, preset_conf) in config[CONF_PRESET].items()
         }
     if CONF_TEMPLATE in config:
@@ -148,7 +148,7 @@ def convert_config(config: Mapping[str, Any]) -> dict[str, Any]:
     result = convert_with_map(config, my_map)
     if CONF_AREA in config:
         result[dyn_const.CONF_AREA] = {
-            area: convert_area(area_conf)
+            area: convert_area(area_conf or {})
             for (area, area_conf) in config[CONF_AREA].items()
         }
     if CONF_DEFAULT in config:
@@ -157,7 +157,7 @@ def convert_config(config: Mapping[str, Any]) -> dict[str, Any]:
         result[dyn_const.CONF_ACTIVE] = ACTIVE_MAP[config[CONF_ACTIVE]]
     if CONF_PRESET in config:
         result[dyn_const.CONF_PRESET] = {
-            preset: convert_preset(preset_conf)
+            preset: convert_preset(preset_conf or {})
             for (preset, preset_conf) in config[CONF_PRESET].items()
         }
     if CONF_TEMPLATE in config:

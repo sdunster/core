@@ -18,6 +18,7 @@ from homeassistant.components.dynalite.const import (
     ATTR_PACKET,
     ATTR_PRESET,
 )
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -153,3 +154,25 @@ async def test_notifications(hass: HomeAssistant) -> None:
     assert my_event.data[ATTR_HOST] == host
     assert my_event.data[ATTR_AREA] == 7
     assert my_event.data[ATTR_PRESET] == 2
+
+
+async def test_setup_with_empty_area_and_preset(hass: HomeAssistant) -> None:
+    """Test areas and presets saved without any settings use the defaults."""
+    entry = MockConfigEntry(
+        domain=dynalite.DOMAIN,
+        data={
+            CONF_HOST: "1.2.3.4",
+            "area": {"5": None, "6": {"name": "Kitchen", "preset": {"2": None}}},
+            "preset": {"3": None},
+        },
+    )
+    entry.add_to_hass(hass)
+    with patch(
+        "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+        return_value=True,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
+    assert hass.states.get("switch.area_5_preset_3")
+    assert hass.states.get("switch.kitchen_preset_2")
