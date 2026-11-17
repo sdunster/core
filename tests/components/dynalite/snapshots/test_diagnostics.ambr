@@ -1,0 +1,56 @@
+# serializer version: 1
+# name: test_diagnostics
+  dict({
+    'config': dict({
+      'area': dict({
+        '1': dict({
+          'channel': dict({
+            '1': dict({
+              'name': 'Downlight',
+              'type': 'light',
+            }),
+          }),
+          'name': 'Kitchen',
+          'nodefault': True,
+        }),
+        '2': dict({
+          'name': 'Fan',
+          'template': 'room',
+        }),
+      }),
+      'host': '**REDACTED**',
+      'port': 12345,
+    }),
+    'connected': False,
+    'entities': list([
+      dict({
+        'disabled_by': None,
+        'entity_id': 'light.kitchen_downlight',
+        'state': dict({
+          'attributes': dict({
+            'friendly_name': 'Kitchen Downlight',
+            'supported_color_modes': list([
+              'brightness',
+            ]),
+            'supported_features': 0,
+          }),
+          'entity_id': 'light.kitchen_downlight',
+          'state': 'unavailable',
+        }),
+        'unique_id': 'dynalite_area_1_channel_1',
+      }),
+      dict({
+        'disabled_by': None,
+        'entity_id': 'switch.fan',
+        'state': dict({
+          'attributes': dict({
+            'friendly_name': 'Fan',
+          }),
+          'entity_id': 'switch.fan',
+          'state': 'unavailable',
+        }),
+        'unique_id': 'dynalite_area_2_room_switch',
+      }),
+    ]),
+  })
+# ---
