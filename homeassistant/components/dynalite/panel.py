@@ -87,9 +87,13 @@ def save_dynalite_config(
         connection.send_result(msg["id"], {"error": True})
         return
     message_conf = msg["config"]
+    # Keep settings the panel does not manage, such as polltimer
     message_data = {
-        conf: message_conf[conf] for conf in RELEVANT_CONFS if conf in message_conf
+        conf: value for conf, value in entry.data.items() if conf not in RELEVANT_CONFS
     }
+    message_data.update(
+        {conf: message_conf[conf] for conf in RELEVANT_CONFS if conf in message_conf}
+    )
     LOGGER.debug("Updating Dynalite config entry")
     hass.config_entries.async_update_entry(entry, data=message_data)
     connection.send_result(msg["id"], {})

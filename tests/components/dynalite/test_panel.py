@@ -178,3 +178,41 @@ async def test_panel_registration(hass: HomeAssistant) -> None:
     module_url = panel.config["_panel_custom"]["module_url"]
     assert module_url == "/dynalite_static/entrypoint-1.2.3.js"
     assert "entrypoint.1.2.3.js" not in module_url  # Ensure wrong format is not used
+
+
+async def test_save_config_keeps_other_settings(
+    hass: HomeAssistant, hass_ws_client: WebSocketGenerator
+) -> None:
+    """Test saving from the panel keeps settings the panel does not manage."""
+    entry = MockConfigEntry(
+        domain=dynalite.DOMAIN,
+        data={
+            CONF_HOST: "1.2.3.4",
+            "polltimer": 2.5,
+            "area": {"1": {"name": "Old"}},
+            "template": {"room": {"room_on": "1", "room_off": "4"}},
+        },
+    )
+    entry.add_to_hass(hass)
+    with patch(
+        "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+        return_value=True,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {
+            "type": "dynalite/save-config",
+            "entry_id": entry.entry_id,
+            "config": {CONF_HOST: "1.2.3.4", "area": {"2": {"name": "New"}}},
+        }
+    )
+    msg = await client.receive_json()
+    assert msg["success"]
+
+    assert entry.data["polltimer"] == 2.5
+    assert entry.data["area"] == {"2": {"name": "New"}}
+    # Settings the panel manages are still removed when the panel leaves them out
+    assert "template" not in entry.data
