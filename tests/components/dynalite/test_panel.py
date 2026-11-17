@@ -90,16 +90,24 @@ async def test_save_config(
 
     client = await hass_ws_client(hass)
 
-    await client.send_json(
-        {
-            "id": 24,
-            "type": "dynalite/save-config",
-            "entry_id": entry2.entry_id,
-            "config": {CONF_HOST: host3, CONF_PORT: port3},
-        }
-    )
+    with (
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ),
+        patch("homeassistant.components.dynalite.bridge.DynaliteDevices.async_reset"),
+    ):
+        await client.send_json(
+            {
+                "id": 24,
+                "type": "dynalite/save-config",
+                "entry_id": entry2.entry_id,
+                "config": {CONF_HOST: host3, CONF_PORT: port3},
+            }
+        )
 
-    msg = await client.receive_json()
+        msg = await client.receive_json()
+        await hass.async_block_till_done()
     assert msg["success"]
     assert msg["result"] == {}
 
@@ -108,6 +116,49 @@ async def test_save_config(
     modified_entry = hass.config_entries.async_get_entry(entry2.entry_id)
     assert modified_entry.data[CONF_HOST] == host3
     assert modified_entry.data[CONF_PORT] == port3
+    # A new address needs a new connection, so the entry was set up again
+    assert modified_entry.runtime_data.host == host3
+    assert modified_entry.runtime_data.port == port3
+
+
+async def test_save_config_same_address(
+    hass: HomeAssistant, hass_ws_client: WebSocketGenerator
+) -> None:
+    """Test saving settings for the same gateway updates them in place."""
+    entry = MockConfigEntry(
+        domain=dynalite.DOMAIN, data={CONF_HOST: "1.2.3.4", CONF_PORT: 765}
+    )
+    entry.add_to_hass(hass)
+    with patch(
+        "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+        return_value=True,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    bridge = entry.runtime_data
+
+    client = await hass_ws_client(hass)
+    with patch(
+        "homeassistant.components.dynalite.bridge.DynaliteDevices.configure"
+    ) as mock_configure:
+        await client.send_json_auto_id(
+            {
+                "type": "dynalite/save-config",
+                "entry_id": entry.entry_id,
+                "config": {
+                    CONF_HOST: "1.2.3.4",
+                    CONF_PORT: 765,
+                    "area": {"1": {"name": "Kitchen"}},
+                },
+            }
+        )
+        msg = await client.receive_json()
+        await hass.async_block_till_done()
+    assert msg["success"]
+
+    assert entry.runtime_data is bridge
+    mock_configure.assert_called_once()
+    assert mock_configure.call_args.args[0]["area"] == {"1": {"name": "Kitchen"}}
 
 
 async def test_save_config_invalid_entry(

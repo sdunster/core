@@ -14,11 +14,19 @@ from dynalite_devices_lib.dynalite_devices import (
 )
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST
+from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import ATTR_AREA, ATTR_HOST, ATTR_PACKET, ATTR_PRESET, LOGGER, PLATFORMS
+from .const import (
+    ATTR_AREA,
+    ATTR_HOST,
+    ATTR_PACKET,
+    ATTR_PRESET,
+    DEFAULT_PORT,
+    LOGGER,
+    PLATFORMS,
+)
 from .convert_config import convert_config
 
 type DynaliteConfigEntry = ConfigEntry[DynaliteBridge]
@@ -33,6 +41,7 @@ class DynaliteBridge:
         self.async_add_devices: dict[str, Callable] = {}
         self.waiting_devices: dict[str, list[str]] = {}
         self.host = config[CONF_HOST]
+        self.port = config.get(CONF_PORT, DEFAULT_PORT)
         # Configure the dynalite devices
         self.dynalite_devices = DynaliteDevices(
             new_device_func=self.add_devices_when_registered,

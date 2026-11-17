@@ -1,13 +1,14 @@
 """Support for the Dynalite networks."""
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .bridge import DynaliteBridge
-from .const import DOMAIN, LOGGER, PLATFORMS
+from .const import DEFAULT_PORT, DOMAIN, LOGGER, PLATFORMS
 from .convert_config import convert_config
 from .panel import async_register_dynalite_frontend
 from .services import async_setup_services
@@ -30,6 +31,13 @@ async def async_entry_changed(hass: HomeAssistant, entry: DynaliteConfigEntry) -
     """Reload entry since the data has changed."""
     LOGGER.debug("Reconfiguring entry %s", entry.data)
     bridge = entry.runtime_data
+    if (entry.data[CONF_HOST], entry.data.get(CONF_PORT, DEFAULT_PORT)) != (
+        bridge.host,
+        bridge.port,
+    ):
+        # The library can't move its connection, so set up the entry again
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+        return
     bridge.reload_config(entry.data)
     LOGGER.debug("Reconfiguring entry finished %s", entry.data)
 
