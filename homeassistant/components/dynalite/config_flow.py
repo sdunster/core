@@ -1,5 +1,6 @@
 """Config flow to configure Dynalite hub."""
 
+import asyncio
 from typing import Any, override
 
 import probatio
@@ -8,9 +9,9 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers import config_validation as cv
 
-from .bridge import DynaliteBridge
 from .const import DEFAULT_PORT, DOMAIN, LOGGER
-from .convert_config import convert_config
+
+CONNECT_TIMEOUT = 10
 
 
 class DynaliteFlowHandler(ConfigFlow, domain=DOMAIN):
@@ -46,9 +47,21 @@ class DynaliteFlowHandler(ConfigFlow, domain=DOMAIN):
         ]
         if host in configured_hosts:
             return self.async_abort(reason="already_configured")
-        bridge = DynaliteBridge(self.hass, convert_config(info))
-        if not await bridge.async_setup():
-            LOGGER.error("Unable to setup bridge - import info=%s", info)
+        if not await _async_can_connect(host, info.get(CONF_PORT, DEFAULT_PORT)):
+            LOGGER.error("Unable to connect to the gateway - info=%s", info)
             return self.async_abort(reason="cannot_connect")
         LOGGER.debug("Creating entry for the bridge - %s", info)
         return self.async_create_entry(title=info[CONF_HOST], data=info)
+
+
+async def _async_can_connect(host: str, port: int) -> bool:
+    """Check that the gateway accepts a TCP connection, then close it."""
+    try:
+        async with asyncio.timeout(CONNECT_TIMEOUT):
+            _, writer = await asyncio.open_connection(host, port)
+    except OSError, TimeoutError:
+        LOGGER.debug("Unable to connect to %s:%s", host, port)
+        return False
+    writer.close()
+    await writer.wait_closed()
+    return True
