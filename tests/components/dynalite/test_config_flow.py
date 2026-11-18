@@ -1,6 +1,6 @@
 """Test Dynalite config flow."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
@@ -11,6 +11,18 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+
+
+def _gateway(*, reachable: bool = True):
+    """Patch the TCP connection made to check the gateway."""
+    writer = Mock(wait_closed=AsyncMock())
+    return patch(
+        "homeassistant.components.dynalite.config_flow.asyncio.open_connection",
+        AsyncMock(
+            return_value=(Mock(), writer),
+            side_effect=None if reachable else ConnectionRefusedError,
+        ),
+    )
 
 
 @pytest.mark.parametrize(
@@ -31,9 +43,12 @@ async def test_flow(
 ) -> None:
     """Run a flow with or without errors and return result."""
     host = "1.2.3.4"
-    with patch(
-        "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
-        side_effect=[first_con, second_con],
+    with (
+        _gateway(reachable=first_con),
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=second_con,
+        ),
     ):
         result = await hass.config_entries.flow.async_init(
             dynalite.DOMAIN, context={"source": config_entries.SOURCE_USER}
@@ -118,9 +133,12 @@ async def test_two_entries(hass: HomeAssistant) -> None:
     host1 = "1.2.3.4"
     host2 = "5.6.7.8"
     MockConfigEntry(domain=dynalite.DOMAIN, data={CONF_HOST: host1}).add_to_hass(hass)
-    with patch(
-        "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
-        return_value=True,
+    with (
+        _gateway(),
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ),
     ):
         result = await hass.config_entries.flow.async_init(
             dynalite.DOMAIN, context={"source": config_entries.SOURCE_USER}
@@ -149,9 +167,12 @@ async def test_setup_user(hass: HomeAssistant) -> None:
     assert result["step_id"] == "user"
     assert result["errors"] is None
 
-    with patch(
-        "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
-        return_value=True,
+    with (
+        _gateway(),
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
@@ -185,3 +206,27 @@ async def test_setup_user_existing_host(hass: HomeAssistant) -> None:
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
+
+
+async def test_user_flow_single_connection(hass: HomeAssistant) -> None:
+    """Test adding a gateway leaves only the entry's connection open."""
+    result = await hass.config_entries.flow.async_init(
+        dynalite.DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    with (
+        _gateway() as mock_connect,
+        patch(
+            "homeassistant.components.dynalite.bridge.DynaliteDevices.async_setup",
+            return_value=True,
+        ) as mock_setup,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: "1.2.3.4", CONF_PORT: 1234}
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    # The check's connection is closed again
+    mock_connect.assert_awaited_once_with("1.2.3.4", 1234)
+    mock_connect.return_value[1].close.assert_called_once()
+    # Only the entry connected through the library
+    mock_setup.assert_called_once()
